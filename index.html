@@ -26,6 +26,7 @@
             padding: 10px;
             display: flex;
             justify-content: center;
+            overflow-x: hidden;
         }
 
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
@@ -42,13 +43,30 @@
             padding: 20px 10px;
             text-align: center;
             position: relative;
+            z-index: 10;
         }
+
+        /* Decorative Icons */
+        .corner-decor {
+            position: absolute;
+            font-size: 20px;
+            z-index: 20;
+            filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.2));
+        }
+        .top-l { top: -15px; left: -15px; transform: rotate(-15deg); }
+        .top-r { top: -15px; right: -15px; transform: rotate(15deg); }
+        .bot-l { bottom: -15px; left: -15px; transform: rotate(15deg); }
+        .bot-r { bottom: -15px; right: -15px; transform: rotate(-15deg); }
 
         .tarot-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin: 15px 0;
+            gap: 12px;
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 8px;
+            border: 2px dashed var(--pixel-green);
         }
 
         .tarot-card {
@@ -56,8 +74,12 @@
             aspect-ratio: 2/3;
             position: relative;
             transform-style: preserve-3d;
-            transition: transform 0.6s;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
+        }
+
+        .tarot-card:hover:not(.flipped) {
+            transform: translateY(-5px) scale(1.05);
         }
 
         .tarot-card.flipped { transform: rotateY(180deg); }
@@ -68,21 +90,35 @@
             width: 100%;
             height: 100%;
             backface-visibility: hidden;
-            border: 2px solid #333;
+            border: 3px solid #333;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
+            border-radius: 6px;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
         }
 
         .card-back {
             background-color: var(--pixel-red);
-            background-image: radial-gradient(circle, white 15%, transparent 15%);
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px),
+                linear-gradient(135deg, var(--pixel-red) 25%, transparent 25%),
+                linear-gradient(225deg, var(--pixel-red) 25%, transparent 25%);
             background-size: 10px 10px;
         }
+        
+        .card-back::after {
+            content: '❄️';
+            font-size: 14px;
+            color: white;
+        }
 
-        .card-front { transform: rotateY(180deg); background: #fffbe6; }
+        .card-front { 
+            transform: rotateY(180deg); 
+            background: #fffbe6;
+            border-color: var(--pixel-yellow);
+        }
 
         .pixel-btn {
             background-color: var(--pixel-red);
@@ -90,32 +126,39 @@
             padding: 12px;
             font-size: 8px;
             border: none;
-            box-shadow: inset -3px -3px 0px 0px var(--pixel-dark-red);
+            box-shadow: inset -4px -4px 0px 0px var(--pixel-dark-red);
             cursor: pointer;
+            transition: transform 0.1s;
         }
+        .pixel-btn:active { transform: translate(2px, 2px); box-shadow: inset -2px -2px 0px 0px var(--pixel-dark-red); }
 
         #fortune-modal {
             position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 90%;
-            max-width: 400px;
+            max-width: 420px;
             background: white;
             border: 6px solid var(--pixel-red);
             z-index: 100;
             display: none;
-            box-shadow: 0 0 0 1000px rgba(0,0,0,0.8);
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.85);
         }
 
-        #overlay-blocker {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.95);
-            z-index: 50;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 20px;
+        /* Snowflakes */
+        .snow {
+            position: fixed;
+            top: -10px;
+            color: white;
+            user-select: none;
+            pointer-events: none;
+            z-index: 1;
+            font-size: 10px;
+            animation: fall linear forwards;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(105vh) rotate(360deg); }
         }
 
         .loading-spinner {
@@ -129,63 +172,106 @@
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #gemini-summary {
+            color: #b91c1c !important;
+        }
     </style>
 </head>
 <body>
 
     <div id="fortune-modal">
-        <div id="capture-area" class="p-5 bg-white">
-            <div class="text-3xl mb-2">🎁</div>
+        <div id="capture-area" class="p-5 bg-white relative">
+            <!-- Modal Decorations -->
+            <div class="text-xl absolute top-2 left-2 opacity-30">🔔</div>
+            <div class="text-xl absolute top-2 right-2 opacity-30">🔔</div>
+            
+            <div class="text-4xl mb-2">🎁</div>
             <h2 class="text-[8px] text-red-600 thai-text">CHRISTMAS DESTINY FOR:</h2>
             <h3 id="final-user-name" class="text-sm text-green-600 underline mb-4">NAME</h3>
             <div id="wish-history" class="space-y-2 mb-4"></div>
-            <div class="p-3 border-4 border-double border-red-100 bg-red-50">
-                <p id="gemini-summary" class="text-[10px] text-red-900 thai-text leading-relaxed font-bold"></p>
+            <div class="p-4 border-4 border-double border-red-100 bg-red-50 relative overflow-hidden">
+                <div class="absolute -right-2 -bottom-2 text-2xl opacity-10">🎄</div>
+                <p id="gemini-summary" class="text-[10px] text-red-700 thai-text leading-relaxed font-bold z-10 relative"></p>
                 <div id="gemini-loading" class="hidden">
                     <div class="loading-spinner"></div>
-                    <p class="text-[6px] text-gray-500">GEMINI IS CONSULTING THE STARS...</p>
+                    <p class="text-[6px] text-gray-500">CONSULTING SANTA'S LIST...</p>
                 </div>
             </div>
         </div>
         <div class="p-3 bg-gray-100 flex flex-col gap-2">
-            <button onclick="downloadResults()" class="pixel-btn" style="background: #3498db; box-shadow: inset -3px -3px 0px #2980b9;">DOWNLOAD HD IMAGE</button>
-            <button onclick="location.reload()" class="pixel-btn">PLAY AGAIN</button>
+            <button onclick="downloadResults()" class="pixel-btn" style="background: #3498db; box-shadow: inset -4px -4px 0px #2980b9;">💾 SAVE YOUR FATE</button>
+            <button onclick="location.reload()" class="pixel-btn">PLAY AGAIN ❄️</button>
         </div>
     </div>
 
     <main class="pixel-card">
+        <!-- Pixel Decorations around the main card -->
+        <div class="corner-decor top-l">🎄</div>
+        <div class="corner-decor top-r">🎅</div>
+        <div class="corner-decor bot-l">🎁</div>
+        <div class="corner-decor bot-r">🔔</div>
+
         <div id="overlay-blocker">
-            <h2 class="text-[10px] text-red-600 mb-4">WHO ARE YOU?</h2>
-            <input type="text" id="name-input" class="border-4 p-2 mb-4 text-center text-[10px]" placeholder="YOUR NAME...">
-            <button onclick="startReading()" class="pixel-btn" style="background:var(--pixel-green); box-shadow: inset -3px -3px 0px #27ae60;">BEGIN</button>
+            <div class="text-4xl mb-4">🦌</div>
+            <h2 class="text-[10px] text-red-600 mb-4">WHISPER YOUR NAME...</h2>
+            <input type="text" id="name-input" class="border-4 border-red-200 p-3 mb-4 text-center text-[10px] w-full max-w-[200px]" placeholder="YOUR NAME...">
+            <button onclick="startReading()" class="pixel-btn" style="background:var(--pixel-green); box-shadow: inset -4px -4px 0px #27ae60;">BEGIN JOURNEY</button>
         </div>
 
-        <h1 class="text-xs text-red-500 mb-4">CHRISTMAS TAROT</h1>
+        <div class="flex justify-center items-center gap-2 mb-2">
+            <span class="text-lg">✨</span>
+            <h1 class="text-[10px] text-red-500">CHRISTMAS TAROT</h1>
+            <span class="text-lg">✨</span>
+        </div>
+        
         <div class="tarot-grid" id="tarot-deck"></div>
-        <div class="bg-white p-3 min-h-[80px] border-4 border-red-50">
-            <p id="reading-text" class="text-[9px] text-gray-400 thai-text">Draw 3 cards to see your fate...</p>
+        
+        <div class="bg-white p-3 min-h-[90px] border-4 border-red-50 relative rounded-lg">
+            <div class="absolute top-1 left-1 text-[8px] opacity-20">⭐</div>
+            <div class="absolute bottom-1 right-1 text-[8px] opacity-20">⭐</div>
+            <p id="reading-text" class="text-[9px] text-gray-400 thai-text">Tap 3 cards to reveal your holiday magic...</p>
+        </div>
+        
+        <div class="mt-4 text-[6px] text-green-700 opacity-50">
+            PIXEL ART EDITION 2025
         </div>
     </main>
 
     <script>
-        const apiKey = "AIzaSyDmEKLMDuFRKzfJwUcmIiOJD-PPhqtq87M"; // Leave blank for environment
+        const apiKey = "AIzaSyDmEKLMDuFRKzfJwUcmIiOJD-PPhqtq87M"; 
+
         const wishTable = [
-            { icon: '🍪', name: 'The Baker', msg: "Sweetness follows you." },
-            { icon: '🦌', name: 'The Guide', msg: "You will lead others." },
-            { icon: '🎄', name: 'The Tree', msg: "Stability and growth." },
-            { icon: '🎁', name: 'The Gift', msg: "Unexpected fortune." },
-            { icon: '❄️', name: 'The Frost', msg: "Clarity through peace." },
-            { icon: '🧣', name: 'The Scarf', msg: "Protection and warmth." },
-            { icon: '🔔', name: 'The Chime', msg: "Fame and recognition." },
-            { icon: '🌟', name: 'The Star', msg: "Wishes coming true." },
-            { icon: '🍗', name: 'The Feast', msg: "Abundance and joy." },
-            { icon: '🕯️', name: 'The Candle', msg: "New inspirations." }
+            { icon: '🍪', name: 'The Baker', msg: "Sweetness and rewards follow you." },
+            { icon: '🦌', name: 'The Guide', msg: "You will lead others to victory." },
+            { icon: '🎄', name: 'The Tree', msg: "Growth and stability are coming." },
+            { icon: '🎁', name: 'The Gift', msg: "A surprise blessing awaits you." },
+            { icon: '❄️', name: 'The Frost', msg: "Clarity found in moments of peace." },
+            { icon: '🧣', name: 'The Scarf', msg: "Protection from all cold winds." },
+            { icon: '🔔', name: 'The Chime', msg: "Good news will ring out for you." },
+            { icon: '🌟', name: 'The Star', msg: "A long-held wish comes true." },
+            { icon: '🍗', name: 'The Feast', msg: "Abundance in home and heart." },
+            { icon: '🕯️', name: 'The Candle', msg: "New inspiration lights your way." }
         ];
 
         let drawnCount = 0;
         let selectedUser = "";
         let grantedWishes = [];
         let deckPool = [...wishTable].sort(() => Math.random() - 0.5);
+
+        // Snow animation
+        function createSnow() {
+            const snow = document.createElement('div');
+            snow.className = 'snow';
+            snow.innerText = '❄️';
+            snow.style.left = Math.random() * 100 + 'vw';
+            snow.style.opacity = Math.random();
+            const duration = Math.random() * 3 + 5;
+            snow.style.animationDuration = duration + 's';
+            document.body.appendChild(snow);
+            setTimeout(() => snow.remove(), duration * 1000);
+        }
+        setInterval(createSnow, 400);
 
         function startReading() {
             const name = document.getElementById('name-input').value.trim();
@@ -203,9 +289,14 @@
                 if (drawnCount < 3 && !card.classList.contains('flipped')) {
                     const res = deckPool[i];
                     grantedWishes.push(res);
-                    document.getElementById(`f-${i}`).innerHTML = `<span class="text-xl">${res.icon}</span>`;
+                    document.getElementById(`f-${i}`).innerHTML = `
+                        <span class="text-2xl mb-1">${res.icon}</span>
+                        <div class="text-[5px] font-bold text-red-600 uppercase">${res.name}</div>
+                    `;
                     card.classList.add('flipped');
                     document.getElementById('reading-text').innerText = res.msg;
+                    document.getElementById('reading-text').classList.remove('text-gray-400');
+                    document.getElementById('reading-text').classList.add('text-red-600');
                     drawnCount++;
                     if (drawnCount === 3) {
                         document.querySelectorAll('.tarot-card').forEach(c => !c.classList.contains('flipped') && c.classList.add('disabled'));
@@ -218,9 +309,16 @@
 
         async function showFortuneSummary() {
             document.getElementById('final-user-name').innerText = selectedUser.toUpperCase();
-            document.getElementById('wish-history').innerHTML = grantedWishes.map(w => `<div class="text-[10px] text-left border-b pb-1"> ${w.icon} <b>${w.name}</b>: ${w.msg}</div>`).join('');
+            document.getElementById('wish-history').innerHTML = grantedWishes.map((w, idx) => `
+                <div class="text-[10px] text-left border-b pb-1 flex items-center gap-2"> 
+                    <span class="text-xl">${w.icon}</span>
+                    <div>
+                        <b class="text-red-600">Card ${idx+1}: ${w.name}</b><br/>
+                        <span class="text-gray-700 text-[8px]">${w.msg}</span>
+                    </div>
+                </div>
+            `).join('');
             document.getElementById('fortune-modal').style.display = 'block';
-            
             await getGeminiSummary();
         }
 
@@ -229,18 +327,36 @@
             const resultBox = document.getElementById('gemini-summary');
             loading.classList.remove('hidden');
 
-            const prompt = `Summarize a Christmas Tarot reading for ${selectedUser}. Cards drawn: ${grantedWishes.map(w => w.name).join(', ')}. Write a short, warm, and festive 2-sentence destiny in Thai language that connects these three themes. Start with "สรุปดวงชะตาคริสต์มาสของคุณ:"`;
+            const prompt = `Summarize a Christmas Tarot reading for ${selectedUser}. Cards drawn: ${grantedWishes.map(w => w.name).join(', ')}. Write a warm, magical, and festive 2-sentence destiny in Thai language that connects these three cards. Start with "สรุปดวงชะตาคริสต์มาสของคุณ:"`;
+
+            const fetchWithRetry = async (url, options, retries = 5, backoff = 1000) => {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return await response.json();
+                } catch (error) {
+                    if (retries <= 0) throw error;
+                    await new Promise(resolve => setTimeout(resolve, backoff));
+                    return fetchWithRetry(url, options, retries - 1, backoff * 2);
+                }
+            };
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const data = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
-                const data = await response.json();
-                resultBox.innerText = data.candidates[0].content.parts[0].text;
+                
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    resultBox.innerText = text;
+                } else {
+                    throw new Error('Invalid response structure');
+                }
             } catch (error) {
-                resultBox.innerText = "ขออภัย ดวงดาวกำลังขัดข้อง โปรดลองใหม่อีกครั้ง!";
+                resultBox.innerText = "ขออภัย ท้องฟ้าคริสต์มาสขัดข้องเล็กน้อย... แต่ปีหน้าของคุณจะดีแน่นอน!";
             } finally {
                 loading.classList.add('hidden');
             }
@@ -256,4 +372,3 @@
     </script>
 </body>
 </html>
-
